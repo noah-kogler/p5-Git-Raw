@@ -58,6 +58,7 @@ typedef git_diff * Diff;
 typedef git_diff_delta * Diff_Delta;
 typedef git_diff_file * Diff_File;
 typedef git_diff_hunk * Diff_Hunk;
+typedef git_diff_line * Diff_Line;
 typedef git_diff_stats * Diff_Stats;
 typedef git_index * Index;
 typedef git_index_entry * Index_Entry;
@@ -961,6 +962,48 @@ STATIC git_diff_format_t git_sv_to_diff_format(SV *format) {
 	return fmt;
 }
 
+STATIC SV *git_diff_line_origin_to_str(const char origin) {
+	SV *str = &PL_sv_undef;
+
+	switch (origin) {
+		case GIT_DIFF_LINE_CONTEXT:
+			str = newSVpv("ctx", 0);
+			break;
+
+		case GIT_DIFF_LINE_ADDITION:
+		case GIT_DIFF_LINE_ADD_EOFNL:
+			str = newSVpv("add", 0);
+			break;
+
+		case GIT_DIFF_LINE_DELETION:
+		case GIT_DIFF_LINE_DEL_EOFNL:
+			str = newSVpv("del", 0);
+			break;
+
+		case GIT_DIFF_LINE_FILE_HDR:
+			str = newSVpv("file", 0);
+			break;
+
+		case GIT_DIFF_LINE_HUNK_HDR:
+			str = newSVpv("hunk", 0);
+			break;
+
+		case GIT_DIFF_LINE_CONTEXT_EOFNL:
+			str = newSVpv("noeol", 0);
+			break;
+
+		case GIT_DIFF_LINE_BINARY:
+			str = newSVpv("bin", 0);
+			break;
+
+		default:
+			croak_assert("Unexpected line origin: %d", origin);
+			break;
+	}
+
+	return str;
+}
+
 STATIC int git_diff_cb(const git_diff_delta *delta, const git_diff_hunk *hunk,
 		const git_diff_line *line, void *data) {
 	dSP;
@@ -971,43 +1014,10 @@ STATIC int git_diff_cb(const git_diff_delta *delta, const git_diff_hunk *hunk,
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	switch (line -> origin) {
-		case GIT_DIFF_LINE_CONTEXT:
-			XPUSHs(sv_2mortal(newSVpv("ctx", 0)));
-			break;
 
-		case GIT_DIFF_LINE_ADDITION:
-		case GIT_DIFF_LINE_ADD_EOFNL:
-			XPUSHs(sv_2mortal(newSVpv("add", 0)));
-			break;
-
-		case GIT_DIFF_LINE_DELETION:
-		case GIT_DIFF_LINE_DEL_EOFNL:
-			XPUSHs(sv_2mortal(newSVpv("del", 0)));
-			break;
-
-		case GIT_DIFF_LINE_FILE_HDR:
-			XPUSHs(sv_2mortal(newSVpv("file", 0)));
-			break;
-
-		case GIT_DIFF_LINE_HUNK_HDR:
-			XPUSHs(sv_2mortal(newSVpv("hunk", 0)));
-			break;
-
-		case GIT_DIFF_LINE_CONTEXT_EOFNL:
-			XPUSHs(sv_2mortal(newSVpv("noeol", 0)));
-			break;
-
-		case GIT_DIFF_LINE_BINARY:
-			XPUSHs(sv_2mortal(newSVpv("bin", 0)));
-			break;
-
-		default:
-			croak_assert("Unexpected diff origin: %d", line -> origin);
-			break;
-	}
-
+	XPUSHs(sv_2mortal(git_diff_line_origin_to_str(line -> origin)));
 	XPUSHs(sv_2mortal(newSVpv(line -> content, line -> content_len)));
+
 	PUTBACK;
 
 	call_sv(coderef, G_DISCARD);
@@ -2308,6 +2318,7 @@ INCLUDE: xs/Diff.xs
 INCLUDE: xs/Diff/Delta.xs
 INCLUDE: xs/Diff/File.xs
 INCLUDE: xs/Diff/Hunk.xs
+INCLUDE: xs/Diff/Line.xs
 INCLUDE: xs/Diff/Stats.xs
 INCLUDE: xs/Error.xs
 INCLUDE: xs/Error/Category.xs

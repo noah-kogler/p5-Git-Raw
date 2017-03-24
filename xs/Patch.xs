@@ -74,6 +74,60 @@ hunks(self, ...)
 
 		XSRETURN(num_hunks);
 
+
+void
+lines_in_hunk(self, hunk_idx, ...)
+	SV *self
+	unsigned int hunk_idx
+
+	PROTOTYPE: $;$
+
+	PREINIT:
+		size_t start = 0, end, num_lines, num_hunks;
+
+	PPCODE:
+		num_hunks = git_patch_num_hunks(GIT_SV_TO_PTR(Patch, self));
+
+		if (hunk_idx >= num_hunks) {
+			croak_usage("hunk index %" PRIuZ " out of range", hunk_idx);
+		}
+
+		num_lines = git_patch_num_lines_in_hunk(GIT_SV_TO_PTR(Patch, self), hunk_idx);
+
+		if (items == 3) {
+			SV *index = ST(2);
+
+			if (!SvIOK(index) || SvIV(index) < 0)
+				croak_usage("Invalid type for 'line index'");
+
+			start = SvUV(index);
+			if (start >= num_lines)
+				croak_usage("line index %" PRIuZ " out of range", start);
+
+			num_lines = 1;
+		}
+
+		end = start + num_lines;
+
+		for (; start < end; ++start) {
+			SV *line;
+			const git_diff_line *l;
+
+			int rc = git_patch_get_line_in_hunk(
+				&l, GIT_SV_TO_PTR(Patch, self), hunk_idx, start
+			);
+			git_check_error(rc);
+
+			GIT_NEW_OBJ_WITH_MAGIC(
+				line, "Git::Raw::Diff::Line",
+				(Diff_Line) l, SvRV(self)
+			);
+
+			mXPUSHs(line);
+		}
+
+		XSRETURN(num_lines);
+
 SV *
 line_stats(self)
 	Patch self

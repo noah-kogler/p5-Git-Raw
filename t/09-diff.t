@@ -201,7 +201,20 @@ foreach my $patch (@patches) {
 	is $hunk -> old_start, 0;
 	is $hunk -> old_lines, 0;
 	is $hunk -> header, '@@ -0,0 +1 @@';
+
+	ok eval { $patch -> lines_in_hunk(0, 0) };
+	ok !eval { $patch -> lines_in_hunk(0, 1) };
+	ok !eval { $patch -> lines_in_hunk(1, 0) };
+	my @lines = $patch -> lines_in_hunk(0);
+	is scalar(@lines), 1;
+	my $line = $lines[0];
+	isa_ok $line, 'Git::Raw::Diff::Line';
+	is $line -> origin, 'add';
+	is $line -> old_lineno, undef;
+	is $line -> new_lineno, 1;
 }
+is $patches[0] -> lines_in_hunk(0, 0) -> content, 'diff me, biatch';
+is $patches[1] -> lines_in_hunk(0, 0) -> content, 'diff me too, biatch';
 
 $expected = <<'EOS';
 diff --git a/diff b/diff
